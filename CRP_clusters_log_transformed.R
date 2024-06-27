@@ -16,14 +16,14 @@ library(survminer)
 
 #import the data
 definitive.clusterings.3k.PAM.labels.3March2021 <- read.csv("~/Not PhD/My publications/Data new analyses March 2021/definitive clusterings 3k PAM labels 3March2021.csv", sep=";")
-load("C:/Users/Gebruiker/Downloads/data_clean (3).RData")
+load("C:/filepath.RData")
 #==========================================================================
 #now do survival analysis
 #import the data
 centre <- data.clean.cohort %>% select('id', 'centre')
 centre <- centre %>% filter(centre %in% c('Glasgow', 'Sheffield', 'Great Ormond Street', 'Lincoln', 'Papworth', 'Royal Brompton', 'Royal United Hospital Bath', 'Imperial and Hammersmith', 'Newcastle Freeman', 'Royal Free'))
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
 
 mort_df <-  v4_clean_clinical_data_first_visit_15Dec23 %>% select('id', 'diagnosis_verified', 'sex', 'age_diagnosis', 'DOB', 'sub_cause', 'sub_date')
 mort_df <- merge(mort_df, centre)
@@ -289,7 +289,7 @@ ggforest(cox, data=lab_mort)
 ggsurvplot(sfit, data=lab_mort, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, title='survival differences based on CRP', xlim=c(0,15), legend.title='CRP cluster', break.x.by=2.5, legend.labs=c('high CRP cluster', 'low CRP cluster'), palette = c('darkred', 'darkblue'))
 
 #import the clinical data
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
 
 b <- merge(lab_mort, v4_clean_clinical_data_first_visit_15Dec23)
 #so data for 241 pts
@@ -313,7 +313,7 @@ cpower(tref = 10, mc= 26/133, accrual =0, r=36 , tmin = 10, noncomp.c = 0, nonco
 summary(sfit, 5)
 cpower(tref = 5, mc= 12/133, accrual =0, r=36 , tmin = 10, noncomp.c = 0, noncomp.i = 0, alpha=0.05, nc=133, ni=108, pr=TRUE)
 #==============================================================================
-load("C:/Users/Gebruiker/Downloads/data_checked (4).RData")
+load("C:/filepath.RData")
 sel <- data.checked %>% select(id, cbt_card_bnp_ngpl)
 b <- merge(b, sel, by='id')
 

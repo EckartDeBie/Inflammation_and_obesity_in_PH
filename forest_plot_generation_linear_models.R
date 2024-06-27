@@ -107,7 +107,12 @@ sdf$cohort <- ifelse(is.na(sdf$estimate), sdf$cohort, paste0("   ", sdf$cohort))
 
 #make NAs blank
 #sdf$p.value <- round(sdf$p.value, digits=6)
+sdf$p.value <- round(sdf$p.value, digits = 6)
+sdf$p.value <- ifelse(sdf$p.value <0.0001, '<0.0001', sdf$p.value)
+
 sdf$p.value <- ifelse(is.na(sdf$p.value), "", sdf$p.value)
+
+sdf$`P-value`<- sdf$p.value
 
 
 #add CI column
@@ -115,13 +120,40 @@ sdf$`Estimate (95% CI)` <- ifelse(is.na(sdf$estimate), "",
                            sprintf("%.2f (%.2f to %.2f)",
                                    sdf$estimate, sdf$low, sdf$high))
 
+sdf <- sdf[,-c(13:23)]
 
+#round pvals!
+sdf[63,16] <- '0.095'
+sdf[62,16] <- '0.095'
+sdf[57,16] <- '0.016'
+sdf[56,16] <- '0.00087'
+sdf[53,16] <- '0.00010'
+sdf[51,16] <- '0.0011'
+sdf[50,16] <- '0.0084'
+sdf[48,16] <- '0.13'
+sdf[47,16] <- '0.25'
+sdf[45,16] <- '0.034'
+sdf[44,16] <- '0.11'
+sdf[42,16] <- '0.29'
+sdf[41,16] <- '0.0013'
+sdf[39,16] <- '0.052'
+sdf[38,16] <- '0.0040'
+sdf[29,16] <- '0.11'
+sdf[27,16] <- '0.0055'
+sdf[26,16] <- '0.00019'
+sdf[24,16] <- '0.063'
+sdf[23,16] <- '0.035'
+sdf[17,16] <- '0.0019'
+
+sdf[12,16] <- '0.012'
+sdf[11,16] <- '0.0071'
+sdf[8,16] <- '0.11'
 
 tdfcrp <- sdf %>% filter(term == 'CRP')
 tdfbmi <- sdf %>% filter(term == 'BMI')
 
 
-p2 <- forest(tdfcrp[,c(10,22,23,6)],
+p2 <- forest(tdfcrp[,c(10,15,17,16)],
             est = tdfcrp$estimate,
             lower = tdfcrp$low, 
             upper = tdfcrp$high,
@@ -130,11 +162,11 @@ p2 <- forest(tdfcrp[,c(10,22,23,6)],
             xlim = c(-0.4, 0.4),
             ticks_at = c(-0.4, -0.2, 0, 0.2, 0.4),
             xlab = 'Standardised effect on variable',
-            title = 'Effect of CRP on clinical parameters',
-            footnote = "Standardised effect of CRP on\nclinical parameters")
+            title = 'Effect of CRP on clinical parameters')
+          
            
 
-p3 <- forest(tdfbmi[,c(10,22,23,6)],
+p3 <- forest(tdfbmi[,c(10,15,17,16)],
              est = tdfbmi$estimate,
              lower = tdfbmi$low, 
              upper = tdfbmi$high,
@@ -143,16 +175,15 @@ p3 <- forest(tdfbmi[,c(10,22,23,6)],
              xlab = 'Standardised effect on variable',
              xlim = c(-0.4, 0.4),
              ticks_at = c(-0.4, -0.2, 0, 0.2, 0.4),
-             title='Effect of BMI on clinical parameters',
-             footnote = "Standardised effect of BMI on\nclinical parameters")
-
+             title='Effect of BMI on clinical parameters')
+             
 
 # Print plot
 plot(p2)
 plot(p3)
 
 library(gridExtra)
-grid.arrange(p2, p3)
+grid.arrange(p2, p3, ncol=2)
 
 #=====================================================================
 #now also get plot designed for paper
@@ -190,7 +221,7 @@ tdfcrp <- sdf %>% filter(term == 'CRP')
 tdfbmi <- sdf %>% filter(term == 'BMI')
 
 
-p2 <- forest(tdfcrp[,c(10,15)],
+p2 <- forest(tdfcrp[,c(10,25)],
              est = tdfcrp$estimate,
              lower = tdfcrp$low, 
              upper = tdfcrp$high,
@@ -201,7 +232,7 @@ p2 <- forest(tdfcrp[,c(10,15)],
              xlab = 'Standardised effect on variable',
              title = 'Effect of CRP on clinical parameters')
          
-p3 <- forest(tdfbmi[,c(10,15)],
+p3 <- forest(tdfbmi[,c(10,25)],
              est = tdfbmi$estimate,
              lower = tdfbmi$low, 
              upper = tdfbmi$high,
@@ -372,7 +403,7 @@ df2$`P-value` <- df2$P.value
 #make P-value blank if NA
 df2$`P-value` <- ifelse(is.na(df2$`P-value`), "", df2$`P-value`)
 
-p3 <- forest(df2[,c(7,10,11,12)],
+p3 <- forest(df2[,c(7,17,18,19)],
              est = df2$HR,
              lower = df2$lower_ci, 
              upper = df2$upper_ci,
@@ -381,8 +412,7 @@ p3 <- forest(df2[,c(7,10,11,12)],
              xlab = 'Hazard ratio with 95% CI',
              xlim = c(0, 2),
              ticks_at = c(0, 0.5, 1, 1.5, 2),
-             title='Cox-proportional Hazard model for the effect of diagnostic CRP in PH',
-             footnote = "HR wiht 95% CI")
+             title='Cox-proportional Hazard model for the effect of diagnostic CRP in PH')
 
 
 #now repeat this for the CRP effects per PH subtype in ASPIRE
@@ -419,16 +449,28 @@ df2$P.value <- round(df2$P.value, digits=5)
 
 #make NAs blank
 df2$P.value <- ifelse(df2$P.value < 0.0001, '<0.0001', df2$P.value)
-df2$P.value <- ifelse(df2$P.value == 1e-05, '<0.0001', df2$P.value)
-df2$P.value <- ifelse(df2$P.value == 2e-05, '<0.0001', df2$P.value)
-df2$P.value <- ifelse(df2$P.value %in% c(9e-05, 7e-05, 2e-04), '<0.0001', df2$P.value)
-
 
 
 df2$`P-value` <- df2$P.value
 
 #make P-value blank if NA
 df2$`P-value` <- ifelse(is.na(df2$`P-value`), "", df2$`P-value`)
+
+#round pvals
+df2[4,13] <- '0.18'
+df2[5,13] <- '0.023'
+df2[6,13] <- '0.030'
+df2[11,13] <- '0.82'
+df2[12,13] <- '0.29'
+df2[18,13] <- '0.038'
+df2[22,13] <- '0.31'
+df2[23,13] <- '0.11'
+df2[24,13] <- '0.76'
+df2[29,13] <- '0.44'
+df2[30,13] <- '0.13'
+df2[32,13] <- '0.00020'
+df2[34,13] <- '0.35'
+df2[36,13] <- '0.26'
 
 p3 <- forest(df2[,c(7,11,12,13)],
              est = df2$HR,
@@ -491,7 +533,24 @@ df2$`P-value` <- df2$P.value
 #make P-value blank if NA
 df2$`P-value` <- ifelse(is.na(df2$`P-value`), "", df2$`P-value`)
 
-p3 <- forest(df2[,c(6,11,12,14)],
+#manuallt chage pvals for this to round properly
+
+df2[10,10] <- '0.12'
+df2[14,10] <- '0.18'
+df2[18,10] <- '0.34'
+df2[22,10] <- '0.75'
+df2[26,10] <- '0.25'
+df2[32,10] <- '0.0010'
+df2[34,10] <- '0.18'
+df2[38,10] <- '0.0070'
+df2[47,10] <- '0.0020'
+df2[48,10] <- '0.030'
+df2[50,10] <- '0.64'
+df2[51,10] <- '0.70'
+df2[54,10] <- '0.0060'
+df2[57,10] <- '0.0034'
+
+p3 <- forest(df2[,c(6,7,8,10)],
              est = df2$HR,
              lower = df2$lower, 
              upper = df2$upper,
@@ -500,9 +559,73 @@ p3 <- forest(df2[,c(6,11,12,14)],
              xlab = 'Hazard ratio with 95% CI',
              xlim = c(0, 6),
              ticks_at = c(0, 1, 2, 3, 4, 5,6),
-             title='Cox-proportional Hazard model for BMI group and covariates',
-             footnote = "HR wiht 95% CI")
+             title='Cox-proportional Hazard model for BMI group and covariates')
 #================================================
+#REPEAT WITH CRP INCLUDED
+#import the data
+coefs_BMI_for_plot <- read.csv2("~/PhD/Projects/CRP ~ survival and BMI/coefs_BMI_for_plot_with_CRP.csv")
+
+c1 <- coefs_BMI_for_plot
+df2 <- c1
+
+
+df2$` ` <- paste(rep(" ", 20), collapse = " ")
+
+
+#indent cohort (https://cran.r-project.org/web/packages/forestploter/vignettes/forestploter-intro.html)
+df2$Group <- ifelse(is.na(df2$HR), df2$Group, paste0("     ", df2$Group))
+
+df2$lower <- round(df2$lower, digits=4)
+df2$upper <- round(df2$upper, digits=4)
+
+#add CI column
+df2$`HR (95% CI)` <- ifelse(is.na(df2$HR), "",
+                            sprintf("%.2f (%.2f to %.2f)",
+                                    df2$HR, df2$lower, df2$upper))
+
+#round pvals and otherwise give them another number
+df2$P.value <- round(df2$P.val, digits=5)
+
+#make NAs blank
+df2$P.value <- ifelse(df2$P.value < 0.0001, '<0.0001', df2$P.value)
+
+df2$`P-value` <- df2$P.value
+
+#make P-value blank if NA
+df2$`P-value` <- ifelse(is.na(df2$`P-value`), "", df2$`P-value`)
+#df2 <- df2[,-c(7:14)]
+
+#manually chage pvals for this to round properly
+df2[4,10] <- '0.30'
+df2[11,10] <- '0.00020'
+df2[15,10] <- '0.0016'
+df2[22,10] <- '0.89'
+df2[32,10] <- '0.0010'
+df2[34,10] <- '0.11'
+df2[36,10] <- '0.00090'
+df2[38,10] <- '0.0070'
+df2[38,10] <- '0.0070'
+df2[40,10] <- '0.0030'
+df2[50,10] <- '0.13'
+df2[51,10] <- '0.030'
+df2[53,10] <- '0.31'
+df2[54,10] <- '0.70'
+df2[57,10] <- '0.0054'
+
+p3 <- forest(df2[,c(6,7,8,10)],
+             est = df2$HR,
+             lower = df2$lower, 
+             upper = df2$upper,
+             ci_column = 2,
+             ref_line = 1,
+             xlab = 'Hazard ratio with 95% CI',
+             xlim = c(0, 6),
+             ticks_at = c(0, 1, 2, 3, 4, 5,6),
+             title='Cox-proportional Hazard model for BMI group and covariates')
+#==================================================================================
+
+
+
 #do cofficients with the 1 year removed plot
 #import the data
 SCALED_Coefficients_ASPIRE_Cox_PH_per_BMI_group_1yr_removed_v1_7May24 <- readRDS("C:/Users/Gebruiker/Documents/PhD/Projects/CRP ~ survival and BMI/SCALED coefficients coxPH/SCALED_Coefficients_ASPIRE_Cox_PH_per_BMI_group_1yr_removed_v1_7May24.rds")

@@ -9,8 +9,8 @@ getwd()
 library("tidyverse")
 
 #load the data
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
-cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/Users/location/cleaned_comorbidity_dataV2_20Dec2023.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
+cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/filepath.rds")
 query_smoking_dump_10_7_23 <- read.delim("~/PhD/Projects/CRP ~ survival and BMI/query_smoking_dump_10_7_23.txt")
 
 df1 <- v4_clean_clinical_data_first_visit_15Dec23 %>% select(id, bs_bmi)

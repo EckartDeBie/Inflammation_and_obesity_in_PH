@@ -16,7 +16,7 @@ library(survminer)
 library(pROC)
 
 #import the data
-load("C:/Users/Gebruiker/Downloads/data_clean (3).RData")
+load("C:/filepath")
 
 #select relevant cols
 treat_effect <- data.clean.cohort %>% select(id, visit, ep_1_type_6mwt, ep_1_distance_meters, functional_class)
@@ -47,7 +47,7 @@ hist(treat2$fc_diff_percent)
 #also a clear skew!
 
 #import the bmi data
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
 bmi <- v4_clean_clinical_data_first_visit_15Dec23 %>% select(id, bs_bmi)
 treat3 <- merge(treat2, bmi, by='id')
 

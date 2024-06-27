@@ -11,7 +11,7 @@ dir = drive_find(pattern = 'aspire_shared', type='folder')
 query = paste('"', dir$id, '"',  ' in parents', sep='')
 a <- drive_find(q=query)
 #file needs to be google sheet! 
-meta <- gs4_get("drive_location1")
+meta <- gs4_get("filepath.com")
 downloaded_file <- read_sheet(meta)
 
 #this works!
@@ -20,7 +20,7 @@ df2 <- df %>% separate_longer_delim(c(CRP), delim= "{n}")
 df2[c('measurement', 'date', 'level', 'unit')] <- str_split_fixed(df2$CRP, ' ', 4)
 
 #merge with clinical data
-meta2 <- gs4_get("drive_location2")
+meta2 <- gs4_get("filepath.com")
 treatment_response <- read_sheet(meta2)
 
 #merge on nearest data
@@ -55,12 +55,12 @@ df_done$num_time_diff <- as.numeric(df_done$time_diff)
 df_done_filt <- df_done %>% group_by(ID) %>% slice(which.min(num_time_diff))
 crp_df <- df_done_filt
 
-meta4 <- gs4_get("drive_location3")
+meta4 <- gs4_get("filepath.com")
 mri_correct <- read_sheet(meta4)
 
 #=====================================================================================
 #data is all set up and ready to use
-  
+
 #load relevant packages
 library(tidyverse)
 library(readxl)
@@ -68,9 +68,6 @@ library(ggplot2)
 library(survival)
 library(survminer)
 
-
-#===========================================================================
-#start with CRP
 #we need: id, type of PH, RA area, RAP, mPAP, PVR, PAWP, CO, age at diagnosis, sex, TAPSE, event (for survival), survival time subtype of PH, 6MWD, CRP, BMI, if possible: comorbidities
 df_done2 <- df_done %>% select(ID, date, level, Gender, DateofFinalDiagnosis, AgeAtDiag, FinalPrimaryPHDiagnosis, LifeStatus, YearsDiagDeath, BMI, mRAP, mPAP, PAWP, PVR, CardiacOutput, FVCp, eGFR, BaseISWD)
 df_done3 <- mri_correct %>% filter(mri_order ==1) %>% select(sth_id, who_functional_class, walking_distance)
@@ -84,6 +81,8 @@ df_crp <- merge(df_done2, df_done3, by.x='ID', by.y='sth_id', all=T)
 #=============================================================================
 #perform linear modelling of variables
 #plot variables first to check if they make sense
+
+#Made a mistake! Just use CRP DF!
 
 #get a model with just diagnostic CRP data - as this is what we'll need for the model
 diag_crp <- merge(crp_df[,c(1,5)], df_crp, by =c('ID','date'))
@@ -131,6 +130,7 @@ hist(clean_df$PAWP)
 
 #now generate a function to do linear modelling
 #picking model which was optimal in IPAH for this
+#(we should discuss if other model is more appropriate)
 
 #now fit some LMs
 library(ggResidpanel)
@@ -188,7 +188,7 @@ pvri$pvri <- (pvri$mPAP - pvri$PAWP)/pvri$CardiacIndex
 pvri$tpr <- pvri$mPAP/pvri$CardiacOutput
 
 #load in new data
-meta5 <- gs4_get("drive_location4")
+meta5 <- gs4_get("filepath.com")
 pyhon_sheet <- read_sheet(meta5)
 bnp <- pyhon_sheet %>% select(sth_id, date_diagnosis, bnp_date, bnp)
 bnp <- na.omit(bnp)
@@ -238,9 +238,9 @@ df5 <- df %>% filter(FinalPrimaryPHDiagnosis == 'G - Pulmonary Hypertension with
 
 #function model for df
 do_lm_per_group_iswd = function(df) { 
-fit <- lm(log(df$BaseISWD + 10)  ~ df$AgeAtDiag + df$Gender + log(df$level) + log(df$BMI))
-plot(resid_panel(fit,  plots = c("resid", "qq", "ls", "cookd"), smoother = TRUE))
-print(summary(fit)) 
+  fit <- lm(log(df$BaseISWD + 10)  ~ df$AgeAtDiag + df$Gender + log(df$level) + log(df$BMI))
+  plot(resid_panel(fit,  plots = c("resid", "qq", "ls", "cookd"), smoother = TRUE))
+  print(summary(fit)) 
 }
 do_lm_per_group_iswd(df1)
 do_lm_per_group_iswd(df2)
@@ -386,7 +386,7 @@ bmi_df$weight <- as.factor(bmi_df$weight)
 mdf <- bmi_df %>% filter(!is.na(weight))
 mdf$Gender <- as.factor(mdf$Gender)
 
-mdf <- merge(mdf, df[,c(1,22)])
+#mdf <- merge(mdf, df[,c(1,22)])
 #now generate survival object
 sobj2 <- Surv(mdf$YearsDiagDeath, mdf$LifeStatus, type='right')
 sfit2 <- survfit(sobj2 ~ weight, data=mdf)
@@ -418,7 +418,7 @@ new_order <- c("obesity class-III", "obesity class-II", "obesity class-I",
 md2$weight <- factor(md2$weight, levels = new_order)
 
 #==================================
-#run code to get comparable plot with Priscilla
+#run code Priscilla
 mdx <- md2
 
 coxmodel5 <- coxph(Surv(YearsDiagDeath, LifeStatus) ~ BMI + AgeAtDiag + Gender + FinalPrimaryPHDiagnosis, data= mdx, x=TRUE)
@@ -445,9 +445,18 @@ plot_surv_3Dsurface(time="YearsDiagDeath",
 
 #do KM
 p <- ggsurvplot(so2, data=md2, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, xlab='Time since diagnosis (years)', title='survival differences based on BMI', xlim=c(0,5), legend.title='Group', break.x.by=1)
-p <- ggsurvplot(so2, data=md2, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, xlab='Time since diagnosis (years)', title='survival differences based on BMI', xlim=c(0,5), legend.title='Group', break.x.by=1, legend.labs=c("obesity class-III", "obesity class-II", "obesity class-I", "pre-obesity", "normal weight", "underweight"))
-#also do coxPH
+p <- ggsurvplot(so2, data=md2, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, xlab='Time since diagnosis (years)', xlim=c(0,5), legend.title='Group', break.x.by=1, legend.labs=c("obesity class-III", "obesity class-II", "obesity class-I", "pre-obesity", "normal weight", "underweight"), tables.height = 0.4, risk.table.fontsize = 4, tables.theme = theme_survminer(
+  font.main = 13,          
+  font.submain = 14,       
+  font.caption = 14,        
+  font.x = 14,             
+  font.y = 14,             
+  risk.table.y.text = element_text(size = 4),  
+  axis.text.y = element_text(size = 4, hjust = 1),  
+  plot.margin = margin(5.5, 40, 5.5, 5.5))) 
 
+
+#also do coxPH
 cox_bmi3 <- coxph(so1 ~ BMI + Gender + AgeAtDiag + PVR + mRAP + FinalPrimaryPHDiagnosis, data=md2)
 ggforest(cox_bmi3, data=md2)
 
@@ -466,6 +475,7 @@ saveRDS(df_coef, 'Coefficients_ASPIRE_Cox_PH_per_BMI_group_v1_3May24.rds')
 md2$pvr_std=scale(md2$PVR)
 md2$rap_std=scale(md2$mRAP)
 md2$age_std=scale(md2$AgeAtDiag)
+md2$crp_scale=scale(md2$level)
 
 #do cox
 cox_bmi4 <- coxph(so1 ~ weight + Gender + age_std + pvr_std + rap_std + FinalPrimaryPHDiagnosis, data=md2)
@@ -474,6 +484,13 @@ df_coef2 <- summary(cox_bmi4)
 df_coef2 <- as.data.frame(df_coef2$coefficients)
 saveRDS(df_coef2, 'SCALED_Coefficients_ASPIRE_Cox_PH_per_BMI_group_v1_3May24.rds')
 
+#repeat with CRP
+levels(md2$weight)
+md2$weight <- relevel(md2$weight, ref=5)
+
+cox_bmi5 <- coxph(so1 ~ weight + Gender + age_std + pvr_std + rap_std + crp_scale + FinalPrimaryPHDiagnosis, data=md2)
+ggforest(cox_bmi5, data=md2)
+summary(cox_bmi5)
 
 #get CoxPH per subgroup
 results_list <- list()
@@ -499,6 +516,19 @@ final_results <- do.call(rbind, lapply(names(results_list), function(x) cbind(Gr
 # Save coefficients data frame
 saveRDS(final_results, 'SCALED_Coefficients_All_Groups_PH_per_BMI_v1_7May24.rds')
 
+
+
+
+concordance <- summary_cox$concord
+loglik <- summary_cox$loglik
+r_squared <- summary_cox$rsq
+
+df_stats <- data.frame(Concordance=concordance, LogLikelihood=loglik, R_squared=r_squared)
+
+
+#also get this per subgroup
+
+
 ####################################
 #now remove inital worse survival
 md_rem <- md2 %>% filter(YearsDiagDeath >=1)
@@ -517,6 +547,8 @@ saveRDS(df_coef, 'SCALED_Coefficients_ASPIRE_Cox_PH_per_BMI_group_1yr_removed_v1
 #do competing outcomes plot
 surv_obj <- with(md3, Surv(time = YearsDiagDeath, event = LifeStatus))
 
+
+#try something else ========================
 md4 <- md3 %>% select(ID, YearsDiagDeath, LifeStatus, weight, level, FinalPrimaryPHDiagnosis)
 md4 <- na.omit(md4)
 
@@ -537,13 +569,6 @@ md4e <- md41 %>% filter(FinalPrimaryPHDiagnosis == 'G - Pulmonary Hypertension w
 #############################################################
 #repeat this with pspline
 cox_model_explicit <- coxph(Surv(time = YearsDiagDeath, event = LifeStatus) ~ pspline(level, df=3) + weight, data = md4)
-c2 <- coxph(Surv(time = YearsDiagDeath, event = LifeStatus) ~ pspline(level, df=4) + weight, data = md4)
-c3 <- coxph(Surv(time = YearsDiagDeath, event = LifeStatus) ~ pspline(level, df=5) + weight, data = md4)
-c4 <- coxph(Surv(time = YearsDiagDeath, event = LifeStatus) ~ pspline(level, df=6) + weight, data = md4)
-c5 <- coxph(Surv(time = YearsDiagDeath, event = LifeStatus) ~ pspline(level, df=7) + weight, data = md4)
-
-BIC(cox_model_explicit, c2, c3,c4,c5)
-
 # Check the summary
 summary(cox_model_explicit)
 
@@ -574,8 +599,7 @@ library(ggplot2)
 ggplot(new_data, aes(x = level, y = surv_prob, group = weight, color = weight)) +
   geom_line() +  # Adds the lines for each weight group
   labs(
-    title = "Survival Probability by diagnostic CRP level and BMI group",
-    x = "CRP Level",
+    x = "CRP Level (mg/ml)",
     y = "Survival Probability"
   ) +
   theme_minimal() +
@@ -877,6 +901,32 @@ ggplot(new_data, aes(x = level, y = surv_prob, group = weight, color = weight)) 
 #not enough data to model
 #===============================================================
 
+library(coxphf)
+
+md3 <- md2 %>% select(YearsDiagDeath, LifeStatus, weight, Gender, AgeAtDiag, PVR, mRAP, FinalPrimaryPHDiagnosis)
+md3 <- na.omit(md3)
+
+md3[,c(1,2,5:7)] <- md3[,c(1,2,5:7)][is.finite(rowSums(md3[,c(1,2,5:7)])),]
+md3 <- as.data.frame(md3)
+#remove the survival time of 0
+md3 <- md3 %>% filter(YearsDiagDeath >0)
+
+coxphf::coxphf(md3, formula=Surv(md3$YearsDiagDeath, md3$LifeStatus, type='right') ~ weight + Gender + AgeAtDiag + PVR + mRAP + FinalPrimaryPHDiagnosis, pl=TRUE)
+
+vTert = quantile(md3$PVR, c(0:3/3))
+
+# classify values
+md3$tert_pvr = with(md3, 
+                    cut(PVR, 
+                        vTert, 
+                        include.lowest = T, 
+                        labels = c("Low", "Medium", "High")))
+
+coxphf::coxphf(md3, formula=Surv(md3$YearsDiagDeath, md3$LifeStatus, type='right') ~ weight + Gender + AgeAtDiag + tert_pvr + mRAP + FinalPrimaryPHDiagnosis, pl=TRUE)
+
+cox_bmi3 <- coxph(Surv(md3$YearsDiagDeath, md3$LifeStatus, type='right') ~ weight + Gender + AgeAtDiag + tert_pvr + mRAP + FinalPrimaryPHDiagnosis, data=md3)
+ggforest(cox_bmi3, data=md3)
+
 #=================================================================
 
 #now run cox-ph for age + sex + bmi
@@ -885,9 +935,39 @@ levels(mdf$FinalPrimaryPHDiagnosis)
 mdf$FinalPrimaryPHDiagnosis <- recode_factor(mdf$FinalPrimaryPHDiagnosis, "B - Pulmonary Arterial Hypertension" = "Group 1 PAH", "D - Pulmonary Hypertension due to Left Heart Disease" = "Group 2 PH",
                                              "E - Pulmonary Hypertension due to Lung Disease and/or Hypoxia" = "Group 3 PH",  "F - Chronic Thromboembolic Pulmonary Hypertension" = "CTEPH", "G - Pulmonary Hypertension with Unclear/Multifactorial Mechanisms" = "Group 5 PH")
 
+cox_bmi <- coxph(sobj2 ~ Gender + weight + AgeAtDiag + FinalPrimaryPHDiagnosis, data=mdf)
+ggforest(cox_bmi, data=mdf)
+
+cox_bmi2 <- coxph(sobj2 ~ Gender + weight + AgeAtDiag + FinalPrimaryPHDiagnosis, data=mdf)
+ggforest(cox_bmi2, data=mdf)
+
+#add in vars
+cox_bmi2 <- coxph(sobj2 ~ Gender + weight + AgeAtDiag + PVR + mRAP + FinalPrimaryPHDiagnosis, data=mdf)
+ggforest(cox_bmi2, data=mdf)
+
+
+cox_bmi2 <- coxph(sobj2 ~ Gender + weight + AgeAtDiag + pvri + mRAP + FinalPrimaryPHDiagnosis, data=mdf)
+ggforest(cox_bmi2, data=mdf)
+
+cox_bmi2 <- coxph(sobj2 ~ Gender + weight + AgeAtDiag + tpr + mRAP + FinalPrimaryPHDiagnosis, data=mdf)
+ggforest(cox_bmi2, data=mdf)
+
+cox_bmi2 <- coxph(sobj2 ~ BMI + Gender + AgeAtDiag + tpr + mRAP + FinalPrimaryPHDiagnosis, data=mdf)
+ggforest(cox_bmi2, data=mdf)
+
+cox_bmi2 <- coxph(sobj2 ~ BMI + Gender + AgeAtDiag + pvri + mRAP + FinalPrimaryPHDiagnosis, data=mdf)
+ggforest(cox_bmi2, data=mdf)
+
+cox_bmi2 <- coxph(sobj2 ~ BMI + Gender + AgeAtDiag + PVR + mRAP + FinalPrimaryPHDiagnosis, data=mdf)
+ggforest(cox_bmi2, data=mdf)
+
+#also plot KM curve
+p <- ggsurvplot(sfit2, data=mdf, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, xlab='Time since diagnosis (years)', title='survival differences based on BMI', xlim=c(0,10), legend.title='Group', break.x.by=2.5, legend.labs=c('Normal weight', 'Obesity class-I', 'Obesiy class-II', 'Obesity class-III', 'Pre-obesity', 'Underweight'))
+
+mdf$who_functional_class <- as.factor(mdf$who_functional_class)
 
 library(Publish)
-uv1 <- univariateTable(weight ~ Gender + AgeAtDiag + FinalPrimaryPHDiagnosis + BMI + level + PVR + pvri + tpr + CardiacIndex + CardiacOutput + mRAP + mPAP + PAWP + FVCp + eGFR + BaseISWD, data=mdf, show.totals = TRUE, column.percent = TRUE, compare.groups = TRUE, summary.format = 'median(x) [iqr(x)]')
+uv1 <- univariateTable(weight ~ Gender + AgeAtDiag + FinalPrimaryPHDiagnosis + BMI + level + PVR + pvri + tpr + CardiacIndex + CardiacOutput + mRAP + mPAP + PAWP + FVCp + eGFR + BaseISWD + who_functional_class, data=mdf, show.totals = TRUE, column.percent = TRUE, compare.groups = TRUE, summary.format = 'median(x) [iqr(x)]')
 uv2 <- summary(uv1)
 
 uv3 <- uv2[,c(1,2,8,3,7,4:6, 9, 10)]
@@ -909,10 +989,10 @@ hist(mdf$BaseISWD)
 library(broom)
 
 do_kruskal = function(myvar) {
- output_krusk <- kruskal.test(mdf[[myvar]] ~ mdf$weight)
- output_krusk = tidy(output_krusk)
- output_krusk$var <- myvar
- return(output_krusk)
+  output_krusk <- kruskal.test(mdf[[myvar]] ~ mdf$weight)
+  output_krusk = tidy(output_krusk)
+  output_krusk$var <- myvar
+  return(output_krusk)
 }
 
 do_kruskal('AgeAtDiag')
@@ -942,6 +1022,8 @@ iqr_4
 excl_crp <- clean_df %>% filter(level <iqr_4)
 #########################################################################
 
+
+#you can just integrate this with the mortality data already existing
 clean_df$crp_above_5 <- as.factor(clean_df$crp_above_5)
 
 sobj <- Surv(clean_df$YearsDiagDeath, clean_df$LifeStatus, type='right')
@@ -1008,13 +1090,61 @@ soc2 <- survfit(soc1 ~ crp_above_5, data=cdf)
 p <- ggsurvplot(soc2, data=cdf, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, xlab='Time since diagnosis (years)', title='survival differences based on diagnostic CRP, outliers removed', xlim=c(0,5), legend.title='CRP level', break.x.by=1, legend.labs=c('CRP <=5', 'CRP >5'), palette = c('darkblue', 'darkred'))
 
 #=================================================================
+
+#now run cox-ph for age + sex + bmi
+
+#relevel PH types first
+clean_df$FinalPrimaryPHDiagnosis <- recode_factor(clean_df$FinalPrimaryPHDiagnosis, "B - Pulmonary Arterial Hypertension" = "Group 1 PAH", "D - Pulmonary Hypertension due to Left Heart Disease" = "Group 2 PH",
+                                                  "E - Pulmonary Hypertension due to Lung Disease and/or Hypoxia" = "Group 3 PH",  "F - Chronic Thromboembolic Pulmonary Hypertension" = "CTEPH", "G - Pulmonary Hypertension with Unclear/Multifactorial Mechanisms" = "Group 5 PH")
+
+cox_crp <- coxph(sobj ~ crp_above_5 + Gender + AgeAtDiag + FinalPrimaryPHDiagnosis, data=clean_df)
+ggforest(cox_crp, data=clean_df)
+
+#now run cox-ph for age + sex + bmi
+cox <- coxph(sobj ~  crp_above_5 + Gender + BMI + AgeAtDiag + FinalPrimaryPHDiagnosis, data=clean_df)
+ggforest(cox, data=clean_df)
+
+#also plot KM
+ggsurvplot(sfit, data=clean_df, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, title='survival differences for CRP in all cause PH', xlim=c(0,10), xlab= 'Time (years since diagnosis)', legend.title='CRP level', break.x.by=2.5, legend.labs=c('First recorded CRP <=5', 'First recorded CRP >5'), palette = c('darkblue', 'darkred'))
+
+#repeat this with removal of highly infectious CRPs
+sobj4 <- Surv(excl_crp$YearsDiagDeath, excl_crp$LifeStatus, type='right')
+sfit4 <- survfit(sobj4 ~ crp_above_5, data=excl_crp)
+ggsurvplot(sfit4, data=excl_crp, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, title='survival differences for CRP in all cause PH (high CRP removed)', xlim=c(0,10), xlab= 'Time (years since diagnosis)', legend.title='CRP level', break.x.by=2.5, legend.labs=c('First recorded CRP <=5', 'First recorded CRP >5'), palette = c('darkblue', 'darkred'))
+
+#now add in variables in cox-PH
+cox2 <- coxph(sobj ~ crp_above_5 + Gender + BMI + AgeAtDiag + PVR, data=clean_df)
+ggforest(cox2, data=clean_df)
+
+cox3 <- coxph(sobj ~ crp_above_5 +  Gender + BMI + AgeAtDiag + mRAP, data=clean_df)
+ggforest(cox3, data=clean_df)
+
+
+#now also compare everyting
+cox4 <- coxph(sobj ~ crp_above_5 +Gender + BMI + AgeAtDiag + mRAP + PAWP + mPAP + CardiacOutput + FinalPrimaryPHDiagnosis, data=clean_df)
+ggforest(cox4, data=clean_df)
+
+cox5 <- coxph(sobj ~ crp_above_5 +Gender + BMI + AgeAtDiag + mRAP + PVR + FinalPrimaryPHDiagnosis, data=clean_df)
+ggforest(cox5, data=clean_df)
+
+#let BMI interact with disease type
+cox6 <- coxph(sobj ~ crp_above_5 +Gender + AgeAtDiag + mRAP + PVR + FinalPrimaryPHDiagnosis*BMI, data=clean_df)
+ggforest(cox6, data=clean_df)
+
+anova(cox6, cox5)
+
+cox7 <- coxph(sobj ~ Gender + AgeAtDiag + mRAP + PVR + FinalPrimaryPHDiagnosis*level + BMI, data=clean_df)
+ggforest(cox7, data=clean_df)
+
+anova(cox5, cox7)
+
 #do KM per disease group
 #and do CoxPH all censored at 5 years post diagnosis
 
 cdf <- cdf2
 
 #cdf$FinalPrimaryPHDiagnosis <- recode_factor(cdf$FinalPrimaryPHDiagnosis, "B - Pulmonary Arterial Hypertension" = "Group 1 PAH", "D - Pulmonary Hypertension due to Left Heart Disease" = "Group 2 PH",
-                                                  "E - Pulmonary Hypertension due to Lung Disease and/or Hypoxia" = "Group 3 PH",  "F - Chronic Thromboembolic Pulmonary Hypertension" = "CTEPH", "G - Pulmonary Hypertension with Unclear/Multifactorial Mechanisms" = "Group 5 PH")
+"E - Pulmonary Hypertension due to Lung Disease and/or Hypoxia" = "Group 3 PH",  "F - Chronic Thromboembolic Pulmonary Hypertension" = "CTEPH", "G - Pulmonary Hypertension with Unclear/Multifactorial Mechanisms" = "Group 5 PH")
 
 
 d1 <- cdf %>% filter(FinalPrimaryPHDiagnosis == 'Group 1 PAH')
@@ -1127,7 +1257,7 @@ a3 <- ggplot(clin123, aes(x=crp_above_5, y=BMI)) +
   scale_fill_manual(values = box_fills, guide='none') +
   ylab('BMI (kg/m^2)') +
   xlab('CRP group') +
- # stat_compare_means(method = "t.test") +
+  # stat_compare_means(method = "t.test") +
   scale_x_discrete(labels= labs) +
   theme_bw()+ 
   scale_y_continuous(expand=expansion(mult = c(0, .1)))
@@ -1139,7 +1269,7 @@ a4 <- ggplot(clin123, aes(x=crp_above_5, y=eGFR)) +
   scale_fill_manual(values = box_fills, guide='none') +
   ylab('eGFR (ml/min/1.73m^2)') +
   xlab('CRP group') +
-#  stat_compare_means(method = "t.test") +
+  #  stat_compare_means(method = "t.test") +
   scale_x_discrete(labels= labs) +
   theme_bw()+ 
   scale_y_continuous(expand=expansion(mult = c(0, .1)))
@@ -1152,7 +1282,7 @@ a5 <- ggplot(clin123, aes(x=crp_above_5, y=BaseISWD)) +
   scale_fill_manual(values = box_fills, guide='none') +
   ylab('ISWD (metres)') +
   xlab('CRP group') +
- # stat_compare_means(method = "t.test") +
+  # stat_compare_means(method = "t.test") +
   scale_x_discrete(labels= labs) +
   theme_bw()+ 
   scale_y_continuous(expand=expansion(mult = c(0, .1)))
@@ -1181,17 +1311,17 @@ a7 <- ggplot(clin123, aes(x=crp_above_5, y=PVR)) +
   theme_bw() + 
   scale_y_continuous(expand=expansion(mult = c(0, .1)))
 #  facet_wrap(~FinalPrimaryPHDiagnosis)
-  
+
 #combine all
 library(patchwork)
-  
+
 a1 + a2 + a3 + a4 +a5 + a6 + a7 + plot_layout(ncol=7)
 
 #######################################################
 #now also per subtype
 
 clin123$FinalPrimaryPHDiagnosis <- recode_factor(clin123$FinalPrimaryPHDiagnosis, "B - Pulmonary Arterial Hypertension" = "Group 1 PAH", "D - Pulmonary Hypertension due to Left Heart Disease" = "Group 2 PH",
-                                             "E - Pulmonary Hypertension due to Lung Disease and/or Hypoxia" = "Group 3 PH",  "F - Chronic Thromboembolic Pulmonary Hypertension" = "CTEPH", "G - Pulmonary Hypertension with Unclear/Multifactorial Mechanisms" = "Group 5 PH")
+                                                 "E - Pulmonary Hypertension due to Lung Disease and/or Hypoxia" = "Group 3 PH",  "F - Chronic Thromboembolic Pulmonary Hypertension" = "CTEPH", "G - Pulmonary Hypertension with Unclear/Multifactorial Mechanisms" = "Group 5 PH")
 
 
 p1<-  ggplot(clin123, aes(x=crp_above_5, y=PAWP)) + 
@@ -1204,9 +1334,9 @@ p1<-  ggplot(clin123, aes(x=crp_above_5, y=PAWP)) +
   scale_x_discrete(labels= labs) +
   theme_bw() +
   facet_wrap(~FinalPrimaryPHDiagnosis)+ 
-    scale_y_continuous(expand=expansion(mult = c(0, .1)))
-  
-  
+  scale_y_continuous(expand=expansion(mult = c(0, .1)))
+
+
 p2 <-  ggplot(clin123, aes(x=crp_above_5, y=mRAP)) + 
   geom_boxplot(aes(fill = crp_above_5), outlier.colour="black", outlier.shape=8, outlier.size=2) +
   ggtitle('RAP') +
@@ -1217,8 +1347,8 @@ p2 <-  ggplot(clin123, aes(x=crp_above_5, y=mRAP)) +
   scale_x_discrete(labels= labs) +
   theme_bw() +
   facet_wrap(~FinalPrimaryPHDiagnosis)+ 
-    scale_y_continuous(expand=expansion(mult = c(0, .1)))
-  
+  scale_y_continuous(expand=expansion(mult = c(0, .1)))
+
 p3 <-   ggplot(clin123, aes(x=crp_above_5, y=BMI)) + 
   geom_boxplot(aes(fill = crp_above_5), outlier.colour="black", outlier.shape=8, outlier.size=2) +
   ggtitle('BMI') +
@@ -1229,8 +1359,8 @@ p3 <-   ggplot(clin123, aes(x=crp_above_5, y=BMI)) +
   scale_x_discrete(labels= labs) +
   theme_bw() +
   facet_wrap(~FinalPrimaryPHDiagnosis)+ 
-    scale_y_continuous(expand=expansion(mult = c(0, .1)))
-  
+  scale_y_continuous(expand=expansion(mult = c(0, .1)))
+
 p4 <-  ggplot(clin123, aes(x=crp_above_5, y=eGFR)) + 
   geom_boxplot(aes(fill = crp_above_5), outlier.colour="black", outlier.shape=8, outlier.size=2) +
   ggtitle('eGFR') +
@@ -1241,9 +1371,9 @@ p4 <-  ggplot(clin123, aes(x=crp_above_5, y=eGFR)) +
   scale_x_discrete(labels= labs) +
   theme_bw() +
   facet_wrap(~FinalPrimaryPHDiagnosis)+ 
-    scale_y_continuous(expand=expansion(mult = c(0, .1)))
-  
-  
+  scale_y_continuous(expand=expansion(mult = c(0, .1)))
+
+
 p5 <-  ggplot(clin123, aes(x=crp_above_5, y=BaseISWD)) + 
   geom_boxplot(aes(fill = crp_above_5), outlier.colour="black", outlier.shape=8, outlier.size=2) +
   ggtitle('Shuttle walk') +
@@ -1254,8 +1384,8 @@ p5 <-  ggplot(clin123, aes(x=crp_above_5, y=BaseISWD)) +
   scale_x_discrete(labels= labs) +
   theme_bw() +
   facet_wrap(~FinalPrimaryPHDiagnosis)+ 
-    scale_y_continuous(expand=expansion(mult = c(0, .1)))
-  
+  scale_y_continuous(expand=expansion(mult = c(0, .1)))
+
 p6 <-  ggplot(clin123, aes(x=crp_above_5, y=FVCp)) + 
   geom_boxplot(aes(fill = crp_above_5), outlier.colour="black", outlier.shape=8, outlier.size=2) +
   ggtitle('FVC') +
@@ -1266,7 +1396,7 @@ p6 <-  ggplot(clin123, aes(x=crp_above_5, y=FVCp)) +
   scale_x_discrete(labels= labs) +
   theme_bw() +
   facet_wrap(~FinalPrimaryPHDiagnosis)+ 
-    scale_y_continuous(expand=expansion(mult = c(0, .1)))
+  scale_y_continuous(expand=expansion(mult = c(0, .1)))
 
 p7 <-  ggplot(clin123, aes(x=crp_above_5, y=PVR)) + 
   geom_boxplot(aes(fill = crp_above_5), outlier.colour="black", outlier.shape=8, outlier.size=2) +
@@ -1278,7 +1408,7 @@ p7 <-  ggplot(clin123, aes(x=crp_above_5, y=PVR)) +
   scale_x_discrete(labels= labs) +
   theme_bw() +
   facet_wrap(~FinalPrimaryPHDiagnosis)+ 
-    scale_y_continuous(expand=expansion(mult = c(0, .1)))
+  scale_y_continuous(expand=expansion(mult = c(0, .1)))
 
 p1 + p2 + p3 + p4 +p5 + p6 + p7 + plot_layout(ncol=4)
 
@@ -1304,7 +1434,7 @@ ggplot(clin1234, aes(x=crp_above_5, y=pvri)) +
   scale_fill_manual(values = box_fills, guide='none') +
   ylab('Indexed PVR') +
   xlab('CRP group') +
-#  stat_compare_means(method = "t.test") +
+  #  stat_compare_means(method = "t.test") +
   scale_x_discrete(labels= labs) +
   theme_bw() +
   facet_wrap(~FinalPrimaryPHDiagnosis)
@@ -1477,7 +1607,7 @@ ggplot(regression_test, aes(x=weight, y=resids)) +
   xlab('BMI group') +
   stat_compare_means(method = "anova")
 
-  
+
 #also propensity match on baseline ISWD
 r1 <- regression_test %>% filter(weight == 'normal weight')
 r1$class <- 'normal_weight'
@@ -1772,6 +1902,8 @@ rev$reveal_plus_BMI <- ifelse(rev$BMI <18.5, 2, rev$reveal_plus_BMI)
 rev$reveal_plus_BMI <- ifelse(rev$BMI >=25 & rev$BMI <30, -1, rev$reveal_plus_BMI)
 rev$reveal_plus_BMI <- ifelse(rev$BMI >=30, -2, rev$reveal_plus_BMI)
 
+reveal_extra <- rev
+
 #now get extra cols
 rev$rev_bmi <- rev$reveal_plus_BMI + rev$reveal_score
 rev$rev_crp <- rev$reveal_plus_CRP + rev$reveal_score
@@ -1791,7 +1923,8 @@ rev$bnp_score <- ifelse(rev$bnp >= 800, 2, rev$bnp_score)
 
 
 #make cols 0 if nothing recorded
-rev <- rev %>% mutate(across(c(sex_score, renal_score, walk_score, sbp_score, dlco_score, pe_score, bnp_score, reveal_plus_CRP), ~replace_na(., 0)))
+#rev <- rev %>% mutate(across(c(sex_score, renal_score, walk_score, sbp_score, dlco_score, pe_score, bnp_score, reveal_plus_CRP), ~replace_na(., 0)))
+rev[is.na(rev)] <- 0
 
 #also get non-invasive reveal score ready
 rev$noninvasive_reveal <- rev$sex_score + rev$renal_score + rev$sbp_score + rev$walk_score + rev$dlco_score + rev$pe_score + rev$bnp_score
@@ -1803,35 +1936,111 @@ rev$noninvasive_reveal_bmi <- rev$sex_score + rev$renal_score + rev$sbp_score + 
 library(survivalROC)
 library(timeROC)
 
-#get survival in years
-rev$survival_time <- rev$survival_time/365.2422
+#########################################################################
+#now model as for paper (using reveal_extra as dataframe!)
+
+reveal_extra$score_pvr <- ifelse(reveal_extra$pvr <(5*80), -1,0)
+reveal_extra$score_rap <- ifelse(reveal_extra$ra_mean >20, 0,1)
+
+reveal_extra$survival_time <- reveal_extra$survival_time/365.2422
+reveal_extra[is.na(reveal_extra)] <- 0
+
+reveal_extra$invasive <- reveal_extra$score_pvr + reveal_extra$score_rap
+
+#now get a noninvasive score
+reveal_extra$noninvasive <- reveal_extra$reveal_score - reveal_extra$invasive
+reveal_extra$noninvasive_crp_bmi <- reveal_extra$noninvasive + reveal_extra$reveal_plus_BMI + reveal_extra$reveal_plus_CRP
+reveal_extra$REVEAL2_crp_bmi <- reveal_extra$reveal_score + reveal_extra$reveal_plus_BMI + reveal_extra$reveal_plus_CRP
+reveal_extra$REVEAL2 <- reveal_extra$reveal_score
+reveal_extra$surv_time <- reveal_extra$survival_time
+reveal_extra$event <- reveal_extra$overall_death
+
+#now select the right data
+df_reveal <- reveal_extra %>% select(sth_id, REVEAL2, REVEAL2_crp_bmi, noninvasive, noninvasive_crp_bmi, surv_time, event)
+
+# Function to compute survival ROC for bootstrap sample
+library(boot)
+library(survivalROC)
+
+fixed_length <- 100
 
 
-#now for 1 year survival
-roc1 <- survivalROC(Stime = rev$survival_time, status = rev$overall_death, marker = rev$reveal_score, predict.time = 1, method = "KM")
-roc2 <- survivalROC(Stime = rev$survival_time, status = rev$overall_death, marker = rev$rev_crp, predict.time = 1, method = "KM")
-roc3 <- survivalROC(Stime = rev$survival_time, status = rev$overall_death, marker = rev$rev_bmi, predict.time = 1, method = "KM")
-roc4 <- survivalROC(Stime = rev$survival_time, status = rev$overall_death, marker = rev$rev_bmicrp, predict.time = 1, method = "KM")
-roc5 <- survivalROC(Stime = rev$survival_time, status = rev$overall_death, marker = rev$noninvasive_reveal, predict.time = 1, method = "KM")
-roc6 <- survivalROC(Stime = rev$survival_time, status = rev$overall_death, marker = rev$noninvasive_reveal_crp, predict.time = 1, method = "KM")
-roc7 <- survivalROC(Stime = rev$survival_time, status = rev$overall_death, marker = rev$noninvasive_reveal_bmi, predict.time = 1, method = "KM")
+compute_roc <- function(data, indices) {
+  df_sample <- data[indices, ]
+  roc <- survivalROC(Stime = df_sample$surv_time, status = df_sample$event, marker = df_sample$marker, predict.time = 1, method = "KM")
+  
+  tp <- roc$TP
+  fp <- roc$FP
+  
+  # Pad TP and FP to the fixed length
+  if (length(tp) < fixed_length) {
+    tp <- c(tp, rep(NA, fixed_length - length(tp)))
+  } else {
+    tp <- tp[1:fixed_length]
+  }
+  
+  if (length(fp) < fixed_length) {
+    fp <- c(fp, rep(NA, fixed_length - length(fp)))
+  } else {
+    fp <- fp[1:fixed_length]
+  }
+  
+  return(c(tp, fp, roc$AUC))
+}
 
+# Number of bootstrap samples
+n_boot <- 500
 
-#now plot
-plot(roc1$FP, roc1$TP, type = "l", col = "yellow", xlab = "1 - Specificity", ylab = "Sensitivity", main = "ROC Curves Comparison of REVEAL score 1 year post diagnosis ASPIRE- Group 1 PAH")
-lines(roc2$FP, roc2$TP, col = "black")
-lines(roc3$FP, roc3$TP, col = "red")
-lines(roc4$FP, roc4$TP, col = "green")
-lines(roc5$FP, roc5$TP, col = "blue")
-lines(roc6$FP, roc6$TP, col = "cyan")
-lines(roc7$FP, roc7$TP, col = "magenta")
+# Function to run bootstrapping and calculate CIs for a given marker
+bootstrap_roc <- function(data, marker_col) {
+  data$marker <- data[[marker_col]]  # Dynamically set the marker column
+  boot_res <- boot(data = data, statistic = compute_roc, R = n_boot)
+  
+  # Determine the length of TP and FP based on the fixed length
+  n <- fixed_length
+  
+  # Extract TPR, FPR, and AUC from bootstrap results
+  tpr_matrix <- matrix(boot_res$t[, 1:n], ncol = n)
+  fpr_matrix <- matrix(boot_res$t[, (n + 1):(2 * n)], ncol = n)
+  auc_vector <- boot_res$t[, (2 * n + 1)]
+  
+  tpr_ci <- apply(tpr_matrix, 2, function(x) quantile(x, probs = c(0.025, 0.975), na.rm = TRUE))
+  fpr_ci <- apply(fpr_matrix, 2, function(x) quantile(x, probs = c(0.025, 0.975), na.rm = TRUE))
+  auc_ci <- quantile(auc_vector, probs = c(0.025, 0.975))
+  
+  return(list(tpr_ci = tpr_ci, fpr_ci = fpr_ci, auc_ci = auc_ci, auc = mean(auc_vector, na.rm = TRUE)))
+}
 
-legend("bottomright", legend = c(paste("REVEAL 2.0, AUC:", round(roc1$AUC, 2)),
-                                 paste("REVEAL + CRP, AUC:", round(roc2$AUC, 2)),
-                                 paste("REVEAL + BMI, AUC:", round(roc3$AUC, 2)),
-                                 paste("REVEAL + BMI & CRP, AUC:", round(roc4$AUC, 2)),
-                                 paste("Noninvasive REVEAL, AUC:", round(roc5$AUC, 2)),
-                                 paste("Noninvase REVEAL + CRP, AUC:", round(roc6$AUC, 2)),
-                                 paste("Noninvasive REVEAL + CRP & BMI, AUC:", round(roc7$AUC, 2))),
-       col = c("yellow", "black", "red", "green", "blue", "cyan", "magenta"), lty = 1, cex=0.8)
+# Calculate CIs for each marker
+roc1_ci <- bootstrap_roc(df_reveal, "REVEAL2")
+roc2_ci <- bootstrap_roc(df_reveal, "REVEAL2_crp_bmi")
+roc3_ci <- bootstrap_roc(df_reveal, "noninvasive")
+roc4_ci <- bootstrap_roc(df_reveal, "noninvasive_crp_bmi")
 
+# Define a palette of contrasting colors
+library(RColorBrewer)
+colors <- brewer.pal(4, "Set1")
+
+# Function to add confidence intervals to the plot with more contrasting colors
+add_ci <- function(fpr, tpr_ci, col) {
+  polygon(c(fpr, rev(fpr)), c(tpr_ci[1, ], rev(tpr_ci[2, ])), col = adjustcolor(col, alpha.f = 0.4), border = NA)
+}
+
+# Plot original ROC curves
+plot(roc1_ci$fpr_ci[1, ], roc1_ci$tpr_ci[1, ], type = "l", col = colors[1], xlab = "1 - Specificity", ylab = "Sensitivity", main = "ROC Curves Comparison of REVEAL score 1 year post diagnosis UK cohort")
+lines(roc2_ci$fpr_ci[1, ], roc2_ci$tpr_ci[1, ], col = colors[2])
+lines(roc3_ci$fpr_ci[1, ], roc3_ci$tpr_ci[1, ], col = colors[3])
+lines(roc4_ci$fpr_ci[1, ], roc4_ci$tpr_ci[1, ], col = colors[4])
+
+# Add confidence intervals with contrasting colors
+add_ci(roc1_ci$fpr_ci[1, ], roc1_ci$tpr_ci, colors[1])
+add_ci(roc2_ci$fpr_ci[1, ], roc2_ci$tpr_ci, colors[2])
+add_ci(roc3_ci$fpr_ci[1, ], roc3_ci$tpr_ci, colors[3])
+add_ci(roc4_ci$fpr_ci[1, ], roc4_ci$tpr_ci, colors[4])
+
+# Add legend
+legend("bottomright", legend = c(paste("REVEAL 2.0, AUC:", round(roc1_ci$auc, 2)),
+                                 paste("REVEAL 2.0 + CRP & BMI, AUC:", round(roc2_ci$auc, 2)),
+                                 paste("Noninvasive REVEAL, AUC:", round(roc3_ci$auc, 2)),
+                                 paste("Noninvasive REVEAL + CRP & BMI, AUC:", round(roc4_ci$auc, 2))),
+       col = colors, lty = 1, cex = 0.8)

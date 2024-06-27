@@ -15,10 +15,10 @@ library(survival)
 library(survminer)
 
 #import the data
-load("C:/Users/Gebruiker/Downloads/data_clean (3).RData")
+definitive.clusterings.3k.PAM.labels.3March2021 <- read.csv("~/Not PhD/My publications/Data new analyses March 2021/definitive clusterings 3k PAM labels 3March2021.csv", sep=";")
+load("C:/filepath.RData")
 crp_df <- data.clean.cohort %>% dplyr::select(id, visit, id_cohort, cbt_inflammation_crp_mgpl, cbt_inflammation_scrp_mgpl)
 crp_df <- as.data.frame(crp_df)
-definitive.clusterings.3k.PAM.labels.3March2021 <- read.csv("~/Not PhD/My publications/Data new analyses March 2021/definitive clusterings 3k PAM labels 3March2021.csv", sep=";")
 #===================================================================================
 #Mortality script
 #===================================================================================
@@ -26,7 +26,7 @@ definitive.clusterings.3k.PAM.labels.3March2021 <- read.csv("~/Not PhD/My public
 centre <- data.clean.cohort %>% dplyr::select('id', 'centre')
 centre <- centre %>% filter(centre %in% c('Glasgow', 'Sheffield', 'Great Ormond Street', 'Lincoln', 'Papworth', 'Royal Brompton', 'Royal United Hospital Bath', 'Imperial and Hammersmith', 'Newcastle Freeman', 'Royal Free'))
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
 above_18 <- v4_clean_clinical_data_first_visit_15Dec23 %>% filter(age_diagnosis >=18)
 
 crp_df <- crp_df %>% filter(id %in% above_18$id)
@@ -82,6 +82,68 @@ hl_crp <- crp_df %>%
 a<- unique(hl_crp$id)
 #this extracts the first visit for everyone! 
 
+
+
+#add labels for CRP recovery
+crp_df2 <- crp_df
+
+crp_df2$fv <- ifelse(crp_df2$visit == 0 & crp_df2$cbt_inflammation_crp_mgpl >5, 'first_above_5', 'first_below_5')
+id_rec <- crp_df2 %>% filter(fv == 'first_above_5')
+id_rec <- id_rec %>% dplyr::select(id)
+id_rec <- unique(id_rec)
+
+crp_df2 <- crp_df2 %>% filter(id %in% id_rec$id)
+crp_df2$fu <- ifelse(crp_df2$visit %in% c(1,2,3,4,5,6,7,8,9,10) & crp_df2$cbt_inflammation_crp_mgpl <=5, 'crp_recovered', 'crp_no_recovered')
+
+crp_rec <- crp_df2 %>% filter(fu == 'crp_recovered') %>% dplyr::select(id)
+crp_rec$recovery <- 'yes'
+crp_df2$y <- 'y'
+
+crp_df3 <- merge(unique(crp_df2[,c(1,10)]), crp_rec, all=T)
+crp_df3$recovery <- ifelse(is.na(crp_df3$recovery), 'no', crp_df3$recovery)
+
+#now make sure the people included have at least 2 CRPs
+library(plyr)
+rows_df <- count(crp_df, 'id')
+rows_df <- as.data.frame(rows_df)
+rows_df <- rows_df %>% filter(freq >1)
+
+#now make sure there are at least 2 measurements in the CRP file
+crp_df3 <- crp_df3 %>% filter(id %in% rows_df$id)
+crp_df3 <- unique(crp_df3)
+#183 patients are retained
+recovery_df <- crp_df3
+recovery_df$recovery <- as.factor(recovery_df$recovery)
+#=========================================================================================
+#now do the first couple mortality analyses
+#try to do this with a function
+do_cox =function(mydf, myvar) {
+  mdf <- merge(mort_df, mydf)
+  sobj <- Surv(mdf[["surv_time"]], mdf[["event"]], type='right')
+  #now run cox-ph for age + sex + bmi
+  cox <- coxph(as.formula(paste("sobj ~ ",myvar," + sex + bs_bmi + age_diagnosis")), data=mdf)
+  return(ggforest(cox, data=mdf))
+}
+do_cox(mydf=recovery_df, myvar= "recovery")
+
+#COX-PH FUNCTION WORKS!!!!!
+#Thanks to help from CW
+
+mdf <- merge(mort_df, recovery_df)
+mdf$recovery <- as.factor(mdf$recovery)
+sobj <- Surv(mdf$surv_time, mdf$event, type='right')
+sfit <- survfit(sobj ~ recovery, data=mdf)
+#now run cox-ph for age + sex + bmi
+cox <- coxph(sobj ~ recovery + sex + bs_bmi + age_diagnosis, data=mdf)
+ggforest(cox, data=mdf)
+
+
+#also plot without confidence intervals
+ggsurvplot(sfit, data=mdf, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, title='survival differences based on CRP recovery', xlim=c(0,15), legend.title='CRP recovery', break.x.by=2.5, legend.labs=c('No CRP recovery', 'CRP recovery'), palette = c('darkred', 'darkblue'))
+
+#now repeat for high/low CRP
+summary(hl_crp$visit)
+
 m_hl <- hl_crp %>% filter(visit <2)
 write_rds(m_hl, 'crp_high_low_first_or_diagnostic_visit_v131Jan24.rds')
 
@@ -98,6 +160,30 @@ ggforest(cox, data=mdf)
 #also plot without confidence intervals
 ggsurvplot(sfit, data=mdf, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, title='survival differences based on first recorded CRP in PAH', xlim=c(0,15), legend.title='CRP >=5', break.x.by=2.5, legend.labs=c('First recorded CRP <=5', 'First recorded CRP >5'), palette = c('darkblue', 'darkred'))
  
+#now run with just IPAH
+mdf <- mdf %>% filter(diagnosis_verified == 'IPAH')
+sobj <- Surv(mdf$surv_time, mdf$event, type='right')
+sfit <- survfit(sobj ~ above_5, data=mdf)
+ggsurvplot(sfit, data=mdf, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = TRUE, title='survival differences based on first recorded CRP in IPAH', xlim=c(0,15), legend.title='CRP >=5', break.x.by=2.5, legend.labs=c('First recorded CRP <=5', 'First recorded CRP >5'), palette = c('darkred','darkblue'))
+
+#now just allocate CRP bins
+m_hl$crp_bin <- ifelse(m_hl$cbt_inflammation_crp_mgpl <=5, 'below_5', NA)
+m_hl$crp_bin <- ifelse(m_hl$cbt_inflammation_crp_mgpl <=10 & m_hl$cbt_inflammation_crp_mgpl >5, 'Five_to_ten', m_hl$crp_bin)
+m_hl$crp_bin <- ifelse(m_hl$cbt_inflammation_crp_mgpl <=20 & m_hl$cbt_inflammation_crp_mgpl >10, 'Ten_to_twenty', m_hl$crp_bin)
+m_hl$crp_bin <- ifelse(m_hl$cbt_inflammation_crp_mgpl <=50 & m_hl$cbt_inflammation_crp_mgpl >20, 'twenty_to_fifty', m_hl$crp_bin)
+m_hl$crp_bin <- ifelse(m_hl$cbt_inflammation_crp_mgpl >50, 'Above_50', m_hl$crp_bin)
+m_hl$crp_bin <- as.factor(m_hl$crp_bin)
+
+mdf <- merge(mort_df, m_hl)
+sobj <- Surv(mdf$surv_time, mdf$event, type='right')
+sfit <- survfit(sobj ~ crp_bin, data=mdf)
+#now run cox-ph for age + sex + bmi
+cox <- coxph(sobj ~ crp_bin + sex + bs_bmi + age_diagnosis, data=mdf)
+ggforest(cox, data=mdf)
+
+
+ggsurvplot(sfit, data=mdf, pval=TRUE, pval.method = TRUE, risk.table = TRUE, conf.int = FALSE, title='survival differences based on first recorded CRP', xlim=c(0,15), legend.title='CRP group', break.x.by=2.5, legend.labs=c('CRP>50', 'CRP <=5', 'CRP 5-10', 'CRP 10 - 20', 'CRP 20 - 50'), palette = c('darkred', 'darkgreen', 'darkblue', 'yellow', 'darkorange'))
+
 
 #get clinical differences between groups
 b <- merge(mdf, v4_clean_clinical_data_first_visit_15Dec23)
@@ -299,7 +385,7 @@ ggforest(cox, data=mdf)
 #======================================
 #EdB continued here on 17-01-2024
 #compare comorbidity between groups
-cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/Users/location/cleaned_comorbidity_dataV2_20Dec2023.rds")
+cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/filepath.rds")
 
 com <- merge(m_hl[,c(1,7)], cleaned_comorbidity_dataV2_20Dec2023)
 com$above_5 <- as.factor(com$above_5)
@@ -536,6 +622,18 @@ ggforest(cox, data=mdf)
 cox <- coxph(sobj ~ above_5 + sex + CCI_score + bs_bmi + hb_rap_m + hb_pvr_calc, data=mdf)
 ggforest(cox, data=mdf)
 
+
+mdf2 <- merge(mdf, unique(data.clean.cohort[,c(1,6)]), by='id')
+mdf2 <- merge(mdf2, definitive.clusterings.3k.PAM.labels.3March2021, by.x='id_cohort.y', by.y='X')
+mdf2$definitive_labels <- as.factor(mdf2$definitive_labels)
+
+sobj2 <- Surv(mdf2$surv_time, mdf2$event, type='right')
+
+cox <- coxph(sobj2 ~ above_5 + definitive_labels + sex + CCI_score + bs_bmi + age_diagnosis + hb_rap_m, data=mdf2)
+ggforest(cox, data=mdf2)
+
+
+#======================================================
 #include smoking status
 query_smoking_dump_10_7_23 <- read.delim("~/PhD/Projects/CRP ~ survival and BMI/query_smoking_dump_10_7_23.txt")
 smoke <- merge(query_smoking_dump_10_7_23, crp_high_low_first_or_diagnostic_visit_v131Jan24, by.x='study_subject_oid', by.y='id')
@@ -790,7 +888,7 @@ pvals$fdr_round <- round(pvals$fdr, digits=10)
 
 
 #get a CCI table
-CCI_score_per_patient_complete <- readRDS("C:/Users/location/CCI_score_per_patient_complete.rds")
+CCI_score_per_patient_complete <- readRDS("C:/filepath.rds")
 b3 <- merge(b, CCI_score_per_patient_complete, by='id')
 
 d1 <- univariateTable(above_5 ~ CCI_adj_score, summary.format = "median(x) [iqr(x)]",  column.percent = TRUE, compare.groups = TRUE, show.totals = TRUE, data = b3)

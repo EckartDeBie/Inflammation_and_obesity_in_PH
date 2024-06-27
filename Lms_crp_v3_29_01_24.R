@@ -14,7 +14,7 @@ library(glmnet)
 library(dplyr)
 
 #import the data
-load("C:/Users/Gebruiker/Downloads/data_clean (3).RData")
+load("C:/filepath.RData")
 df_c <- data.clean.cohort %>% select(id, visit, id_cohort, cbt_inflammation_crp_mgpl, cbt_inflammation_scrp_mgpl)
 df_c <- as.data.frame(df_c)
 
@@ -32,8 +32,8 @@ crp_for_later <- crp_dat
 centre <- data.clean.cohort %>% select('id', 'centre')
 centre <- centre %>% filter(centre %in% c('Glasgow', 'Sheffield', 'Great Ormond Street', 'Lincoln', 'Papworth', 'Royal Brompton', 'Royal United Hospital Bath', 'Imperial and Hammersmith', 'Newcastle Freeman', 'Royal Free'))
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
-CCI_score_per_patient_complete <- readRDS("C:/Users/location/CCI_score_per_patient_complete.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
+CCI_score_per_patient_complete <- readRDS("C:/filepath.rds")
 
 #========================================================
 #repeat Lms with just adults --> generate the data-frames

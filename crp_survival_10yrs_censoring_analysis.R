@@ -16,7 +16,7 @@ library(survival)
 library(survminer)
 
 #import the data
-load("C:/Users/Gebruiker/Downloads/data_clean (3).RData")
+load("C:/filepath.RData")
 crp_df <- data.clean.cohort %>% dplyr::select(id, visit, id_cohort, cbt_inflammation_crp_mgpl, cbt_inflammation_scrp_mgpl)
 crp_df <- as.data.frame(crp_df)
 #===================================================================================
@@ -26,7 +26,7 @@ crp_df <- as.data.frame(crp_df)
 centre <- data.clean.cohort %>% dplyr::select('id', 'centre')
 centre <- centre %>% filter(centre %in% c('Glasgow', 'Sheffield', 'Great Ormond Street', 'Lincoln', 'Papworth', 'Royal Brompton', 'Royal United Hospital Bath', 'Imperial and Hammersmith', 'Newcastle Freeman', 'Royal Free'))
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
 
 mort_df <-  v4_clean_clinical_data_first_visit_15Dec23 %>% dplyr::select('id', 'diagnosis_verified', 'sex', 'age_diagnosis', 'bs_bmi', 'DOB', 'sub_cause', 'sub_date')
 mort_df <- merge(mort_df, centre)
@@ -139,7 +139,7 @@ ggsurvplot(sfit, data=mdf, pval=TRUE, pval.method = TRUE, risk.table = TRUE, con
 #======================================
 #EdB continued here on 17-01-2024
 #compare comorbidity between groups
-cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/Users/location/cleaned_comorbidity_dataV2_20Dec2023.rds")
+cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/filepath.rds")
 
 com <- merge(m_hl[,c(1,7)], cleaned_comorbidity_dataV2_20Dec2023)
 com$above_5 <- as.factor(com$above_5)

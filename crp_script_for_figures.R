@@ -16,14 +16,14 @@ library(survminer)
 
 #import the data
 definitive.clusterings.3k.PAM.labels.3March2021 <- read.csv("~/Not PhD/My publications/Data new analyses March 2021/definitive clusterings 3k PAM labels 3March2021.csv", sep=";")
-load("C:/Users/Gebruiker/Downloads/data_clean (3).RData")
+load("C:/filepath.RData")
 crp_df <- data.clean.cohort %>% select(id, visit, id_cohort, cbt_inflammation_crp_mgpl, cbt_inflammation_scrp_mgpl)
 crp_df <- as.data.frame(crp_df)
 
 
 log_transformed_crp_levels_clusters <- readRDS("C:/Users/Gebruiker/Documents/PhD/Projects/CRP ~ survival and BMI/log_transformed_crp_levels_clusters.rds")
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
 
 clin1 <- merge(log_transformed_crp_levels_clusters, v4_clean_clinical_data_first_visit_15Dec23, by.x='name', by.y='id')
 clin1$value <- as.factor(clin1$value)

@@ -16,7 +16,7 @@ library(survminer)
 
 #import the data
 definitive.clusterings.3k.PAM.labels.3March2021 <- read.csv("~/Not PhD/My publications/Data new analyses March 2021/definitive clusterings 3k PAM labels 3March2021.csv", sep=";")
-load("C:/Users/Gebruiker/Downloads/data_clean (3).RData")
+load("filepath.RData")
 crp_df <- data.clean.cohort %>% select(id, visit, id_cohort, cbt_inflammation_crp_mgpl, cbt_inflammation_scrp_mgpl)
 crp_df <- as.data.frame(crp_df)
 
@@ -27,7 +27,7 @@ crp_df <- as.data.frame(crp_df)
 centre <- data.clean.cohort %>% select('id', 'centre')
 centre <- centre %>% filter(centre %in% c('Glasgow', 'Sheffield', 'Great Ormond Street', 'Lincoln', 'Papworth', 'Royal Brompton', 'Royal United Hospital Bath', 'Imperial and Hammersmith', 'Newcastle Freeman', 'Royal Free'))
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("filepath.rds")
 
 mort_df <-  v4_clean_clinical_data_first_visit_15Dec23 %>% select('id', 'diagnosis_verified', 'sex', 'age_diagnosis', 'bs_bmi', 'DOB', 'sub_cause', 'sub_date')
 mort_df <- merge(mort_df, centre)
@@ -106,10 +106,10 @@ ggforest(cox, data=mdf)
 cox <- coxph(sobj ~  sex + age_diagnosis + bs_bmi, data=mdf)
 ggforest(cox, data=mdf)
 
-#limit survival analysis to 5 years
+#limit survival analysis to 10 years
 mdf2 <- mdf
-mdf2$event <- ifelse(mdf2$surv_time >=5, 0, mdf2$event)
-mdf2$surv_time <- ifelse(mdf2$surv_time >=5, 5, mdf2$surv_time)
+mdf2$event <- ifelse(mdf2$surv_time >=10, 0, mdf2$event)
+mdf2$surv_time <- ifelse(mdf2$surv_time >=10, 10, mdf2$surv_time)
 levels(mdf2$weight)
 #relevel
 mdf2$weight2 <- mdf2$weight
@@ -160,6 +160,33 @@ ggforest(cox, data=mdf1234)
 sc <- summary(cox)
 sc123 <- as.data.frame(sc$coefficients)
 saveRDS(sc123, file='SCALED_coef_IPAH_cohort_BMI_groups.rds')
+
+#add in CRP here!
+
+crps <- v4_clean_clinical_data_first_visit_15Dec23 %>% select(id, cbt_inflammation_crp_mgpl)
+crps <- crps %>% filter(!is.na(cbt_inflammation_crp_mgpl))
+
+mdf12345 <- merge(mdf1234, crps, by='id', all=T)
+mdf12345 <- mdf12345 %>% filter(!is.na(weight))
+mdf12345$crp_scale=scale(mdf12345$cbt_inflammation_crp_mgpl)
+
+#need to relevel smoking
+levels(mdf12345$`Smoking history`)
+mdf12345$`Smoking history` <- as.factor(mdf12345$`Smoking history`)
+mdf12345$`Smoking history` <- relevel(mdf12345$`Smoking history`, ref=3)
+
+sobj23 <- Surv(mdf12345$surv_time, mdf12345$event, type='right')
+
+cox <- coxph(sobj23 ~  weight + sex + `Smoking history`+ crp_scale + scale_age + scale_cci + scale_pvr + scale_rap, data=mdf12345)
+library(car)
+vif(cox)
+ggforest(cox, data=mdf12345)
+sc2 <- summary(cox)
+sc12345 <- as.data.frame(sc2$coefficients)
+sc12345$upper <- sc12345$`exp(coef)` + (1.96*sc12345$`se(coef)`)
+sc12345$lower <- sc12345$`exp(coef)` - (1.96*sc12345$`se(coef)`)
+
+sc12345$`exp(coef)` <- round(sc12345$`exp(coef)`, digits=4)
 
 library(contsurvplot)
 
@@ -269,7 +296,7 @@ pvals$fdr_round <- round(pvals$fdr, digits=10)
 
 
 #get a CCI table
-CCI_score_per_patient_complete <- readRDS("C:/Users/location/CCI_score_per_patient_complete.rds")
+CCI_score_per_patient_complete <- readRDS("filepath.rds")
 b3 <- merge(b, CCI_score_per_patient_complete, by='id')
 
 d1 <- univariateTable(weight ~ CCI_adj_score, summary.format = "median(x) [iqr(x)]",  column.percent = TRUE, compare.groups = TRUE, show.totals = TRUE, data = b3)
@@ -412,5 +439,37 @@ wl <- merge(wl, treatment_effects_file_v1_March2024, by='id')
 summary(aov(wl$walk_diff_meters ~ wl$weight))
 summary(aov(wl$fc_diff ~ wl$weight))
 
+wl1 <- wl %>% filter(!is.na(bs_bmi) & !is.na(walk_diff_meters))
+wl2 <- wl %>% filter(!is.na(bs_bmi) & !is.na(fc_diff))
 
+m1 <- lm(wl1$walk_diff_meters ~ wl1$bs_bmi)
+m2 <- lm(wl2$fc_diff ~ wl2$bs_bmi)
 
+wl1$resid <- m1$residuals
+wl2$resid <- m2$residuals
+
+summary(aov(wl1$resid ~ wl1$weight))
+summary(aov(wl2$resid ~ wl2$weight))
+
+#============================================================
+#regress out baseline walk
+wl1 <- wl %>% filter(!is.na(ep_1_distance_meters_0) & !is.na(walk_diff_meters))
+wl2 <- wl %>% filter(!is.na(ep_1_distance_meters_0) & !is.na(fc_diff))
+
+m1 <- lm(wl1$walk_diff_meters ~ wl1$ep_1_distance_meters_0)
+m2 <- lm(wl2$fc_diff ~ wl2$ep_1_distance_meters_0)
+
+wl1$resid <- m1$residuals
+wl2$resid <- m2$residuals
+
+summary(aov(wl1$resid ~ wl1$weight))
+summary(aov(wl2$resid ~ wl2$weight))
+
+w_thres <- wl %>% filter(bs_bmi >40)
+
+t.test(w_thres$ep_1_distance_meters_0, w_thres$ep_1_distance_meters_1, paired=TRUE)
+chisq.test(w_thres$functional_class_0, w_thres$functional_class_1, paired=TRUE)
+
+w_thres2 <- wl %>% filter(bs_bmi <=40)
+t.test(w_thres2$ep_1_distance_meters_0, w_thres2$ep_1_distance_meters_1, paired=TRUE)
+chisq.test(w_thres2$functional_class_0, w_thres2$functional_class_1)

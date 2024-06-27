@@ -8,7 +8,7 @@ getwd()
 #load packages
 library("tidyverse")
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
 log_transformed_crp_levels_clusters <- readRDS("C:/Users/Gebruiker/Documents/PhD/Projects/CRP ~ survival and BMI/log_transformed_crp_levels_clusters.rds")
 
 
@@ -17,6 +17,13 @@ names(clust) <- c('id', 'cluster')
 clust$cluster <- as.factor(clust$cluster)
 
 df <- merge(v4_clean_clinical_data_first_visit_15Dec23, clust, by='id')
+
+d1 <- df %>% filter(cluster == 1)
+summary(d1$cbt_inflammation_crp_mgpl)
+d2 <- df %>% filter(cluster == 2)
+summary(d2$cbt_inflammation_crp_mgpl)
+quantile(d2$cbt_inflammation_crp_mgpl, na.rm = T)
+quantile(d1$cbt_inflammation_crp_mgpl, na.rm = T)
 
 wilcox.test(df$bs_bmi ~ df$cluster)
 wilcox.test(df$hb_pawp_m ~ df$cluster)
@@ -36,114 +43,7 @@ crp_high_low_first_or_diagnostic_visit_v131Jan24$above_5 <- as.factor(crp_high_l
 
 df3 <- merge(crp_high_low_first_or_diagnostic_visit_v131Jan24, v4_clean_clinical_data_first_visit_15Dec23, by='id')
 
-
-#now get graphs (for some reason not saved in earlier iteration.....)
-#now compare clinical differences of interest between groups
-clin123 = df3
-
-#first plot clinical differences
-labs <- c('<=5', '>5')
-box_fills <- c('darkblue', 'darkred')
-
-library(rstatix)
-
-a1 <- ggplot(clin123, aes(x=above_5, y=hb_pawp_m)) + 
-  geom_boxplot(aes(fill = above_5), outlier.colour="black", outlier.shape=8, outlier.size=4) +
-  ggtitle('PAWP') +
-  scale_fill_manual(values = box_fills, guide='none') +
-  ylab('Wedge pressure (mmHg)') +
-  xlab('CRP group') +
-  #stat_compare_means(method = "wilcox.test") +
-  scale_x_discrete(labels= labs) +
-  theme_bw()+ 
-  scale_y_continuous(expand=expansion(mult = c(0, .1)))
-#  facet_wrap(~FinalPrimaryPHDiagnosis)
-
-
-a2 <- ggplot(clin123, aes(x=above_5, y=hb_rap_m)) + 
-  geom_boxplot(aes(fill = above_5), outlier.colour="black", outlier.shape=8, outlier.size=4) +
-  ggtitle('RAP') +
-  scale_fill_manual(values = box_fills, guide='none') +
-  ylab('RAP (mmHg)') +
-  xlab('CRP group') +
-  #stat_compare_means(method = "wilcox.test") +
-  scale_x_discrete(labels= labs) +
-  theme_bw()+ 
-  scale_y_continuous(expand=expansion(mult = c(0, .1)))
-#  facet_wrap(~FinalPrimaryPHDiagnosis)
-
-a3 <- ggplot(clin123, aes(x=above_5, y=bs_bmi)) + 
-  geom_boxplot(aes(fill = above_5), outlier.colour="black", outlier.shape=8, outlier.size=4) +
-  ggtitle('BMI') +
-  scale_fill_manual(values = box_fills, guide='none') +
-  ylab('BMI (kg/m^2)') +
-  xlab('CRP group') +
-  # stat_compare_means(method = "t.test") +
-  scale_x_discrete(labels= labs) +
-  theme_bw()+ 
-  scale_y_continuous(expand=expansion(mult = c(0, .1)))
-#  facet_wrap(~FinalPrimaryPHDiagnosis)
-
-a4 <- ggplot(clin123, aes(x=above_5, y=egfr_mdrd)) + 
-  geom_boxplot(aes(fill = above_5), outlier.colour="black", outlier.shape=8, outlier.size=4) +
-  ggtitle('eGFR') +
-  scale_fill_manual(values = box_fills, guide='none') +
-  ylab('eGFR (ml/min/1.73m^2)') +
-  xlab('CRP group') +
-  #  stat_compare_means(method = "t.test") +
-  scale_x_discrete(labels= labs) +
-  theme_bw()+ 
-  scale_y_continuous(expand=expansion(mult = c(0, .1)))
-#  facet_wrap(~FinalPrimaryPHDiagnosis)
-
-clin1234 <- clin123 %>% filter(ep_1_type_6mwt == 'corridor')
-
-a5 <- ggplot(clin1234, aes(x=above_5, y=ep_1_distance_meters)) + 
-  geom_boxplot(aes(fill = above_5), outlier.colour="black", outlier.shape=8, outlier.size=4) +
-  ggtitle('6MWD') +
-  scale_fill_manual(values = box_fills, guide='none') +
-  ylab('6MWD (metres)') +
-  xlab('CRP group') +
-  # stat_compare_means(method = "t.test") +
-  scale_x_discrete(labels= labs) +
-  theme_bw()+ 
-  scale_y_continuous(expand=expansion(mult = c(0, .1)))
-#  facet_wrap(~FinalPrimaryPHDiagnosis)
-
-a6 <- ggplot(clin123, aes(x=above_5, y=lf_fvc_pc)) + 
-  geom_boxplot(aes(fill = above_5), outlier.colour="black", outlier.shape=8, outlier.size=4) +
-  ggtitle('FVC') +
-  scale_fill_manual(values = box_fills, guide='none') +
-  ylab('FVC (%pred)') +
-  xlab('CRP group') +
-  #stat_compare_means(method = "t.test") +
-  scale_x_discrete(labels= labs) +
-  theme_bw()+ 
-  scale_y_continuous(expand=expansion(mult = c(0, .1)))
-#  facet_wrap(~FinalPrimaryPHDiagnosis)
-
-a7 <- ggplot(clin123, aes(x=above_5, y=hb_pvr_calc)) + 
-  geom_boxplot(aes(fill = above_5), outlier.colour="black", outlier.shape=8, outlier.size=4) +
-  ggtitle('PVR') +
-  scale_fill_manual(values = box_fills, guide='none') +
-  ylab('PVR (Dynes/sec)') +
-  xlab('CRP group') +
-  #stat_compare_means(method = "wilcox.test") +
-  scale_x_discrete(labels= labs) +
-  theme_bw() + 
-  scale_y_continuous(expand=expansion(mult = c(0, .1)))
-#  facet_wrap(~FinalPrimaryPHDiagnosis)
-
-#combine all
-library(patchwork)
-
-a1 + a2 + a3 + a4 +a5 + a6 + a7 + plot_layout(ncol=7)
-
-#=============================================
-
-
-
-load("C:/Users/Gebruiker/Downloads/data_checked (4).RData")
+load("C:/filepath.RData")
 sel <- data.checked %>% select(id, cbt_card_bnp_ngpl)
 df3 <- merge(df3, sel, by='id')
 
@@ -238,7 +138,7 @@ c2 <- summary(c1)
 
 
 #compare comorbidity between groups
-cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/Users/location/cleaned_comorbidity_dataV2_20Dec2023.rds")
+cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/filepath.rds")
 m_hl <- crp_high_low_first_or_diagnostic_visit_v131Jan24
 
 com <- merge(m_hl[,c(1,7)], cleaned_comorbidity_dataV2_20Dec2023, all=T)
@@ -427,3 +327,29 @@ p <- forest(OR2[,c(2,3,6,4,5)],
 
 # Print plot
 plot(p)
+
+#=================================================================================
+#extract total comorbidities from the cohort for Mark
+#only take UK patients diagnosed as adults
+ids <- v4_clean_clinical_data_first_visit_15Dec23 %>% select(id, age_diagnosis)
+
+load("C:/filepath.RData")
+centre <- data.clean.cohort %>% select('id', 'centre')
+centre <- centre %>% filter(centre %in% c('Glasgow', 'Sheffield', 'Great Ormond Street', 'Lincoln', 'Papworth', 'Royal Brompton', 'Royal United Hospital Bath', 'Imperial and Hammersmith', 'Newcastle Freeman', 'Royal Free'))
+
+ids <- merge(ids, centre, by='id')
+ids <- ids %>% filter(age_diagnosis >=18)
+ids <- unique(ids)
+#1052 patients recorded
+
+cleaned_comorbidity_dataV2_20Dec2023 <- readRDS("C:/filepath.rds")
+
+cm <- cleaned_comorbidity_dataV2_20Dec2023 %>% filter(id %in% ids$id)
+#from 4824 diagnoses to 3785 diagnoses
+numbs <- tidy(summary(as.factor(cm$cfh_comorbid_disease_diagnosis)))
+#816 patients have comorbidities registered... (does it mean others are missing or nonexistent?)
+
+result <- cm %>% group_by(cfh_comorbid_disease_diagnosis) %>% summarise(Count = n())
+result$percentage_of_included <- (result$Count/816)*100
+result$percentage_of_total <- (result$Count/1052)*100
+write.csv2(result, 'comorbidities_percentage_in_cohort.csv')

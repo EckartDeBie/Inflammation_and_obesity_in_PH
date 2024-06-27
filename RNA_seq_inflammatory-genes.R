@@ -5,7 +5,7 @@ getwd()
 setwd("C:/Users/Gebruiker/Documents/PhD/Projects")
 getwd()
 
-RNA_expression_of_inflammatory_genes <- readRDS("C:/Users/Gebruiker/Downloads/RNA_expression_of_inflammatory_genes.rds")
+RNA_expression_of_inflammatory_genes <- readRDS("C:/filepath.rds")
 lapply(RNA_expression_of_inflammatory_genes[,2:86], hist)
 RNA_expression_of_inflammatory_genes$above_5 <- as.factor(RNA_expression_of_inflammatory_genes$above_5)
 
@@ -58,6 +58,32 @@ res1$qnonp <- p.adjust(res1$non_parametric_pval, method='fdr')
 pvals_fdr_crp_groups <- res1 %>% select(gene, non_parametric_pval)
 names(pvals_fdr_crp_groups) <- c('gene', 'pval_for_CRP')
 
+#get logFC ready
+#1) get mean expression data
+rna_nolog <- rna2 %>% pivot_longer(2:86, names_to = 'gene', values_to = 'expression_level')
+
+mean_express <- rna_nolog %>% group_by(above_5, gene) %>% summarise(mean_expression = mean(expression_level, na.rm=T))
+expression_spread <- mean_express %>% pivot_wider(names_from = above_5, values_from = mean_expression)
+expression_spread$logFC <- expression_spread$yes/expression_spread$no
+expression_spread$logFC2 <- log2(expression_spread$logFC)
+
+#merge this with qvals
+volc_pl <- merge(res1, expression_spread, by='gene')
+volc_pl <- as.data.frame(volc_pl)
+rownames(volc_pl) <- volc_pl$gene
+
+library(EnhancedVolcano)
+EnhancedVolcano(volc_pl,
+                lab = rownames(volc_pl),
+                x = 'logFC2',
+                y = 'qval',
+                xlim = c(-1, 1),
+                title = 'volcano plot of high versus low CRP inflammatory genes',
+                pCutoff = 0.05,
+                FCcutoff = 1.5,
+                pointSize = 3.0,
+                labSize = 3.0)
+
 #select the significantly different ones
 res_plot <- res1 %>% filter(qnonp <0.05)
 
@@ -79,6 +105,53 @@ ggplot(res_plot, aes(x=above_5, y=expression_level, fill=above_5)) +
   scale_fill_manual(values=c('darkblue', 'darkred')) +
   ggtitle('Differential, PC corrected, TPM, of inflammatory genes between high/low CRP')
 
+library(pheatmap)
+library(RColorBrewer)
+col1 <- c('darkblue', 'darkred')
+
+hm <- res_plot %>% select(above_5, gene, expression_level, SampleID)
+
+hm2 <- hm[,-1]
+hm2 <- hm2 %>% pivot_wider(names_from = SampleID, values_from = expression_level)
+
+hm2 <- as.data.frame(hm2)
+rownames(hm2) <- hm2$gene
+hm2 <- hm2[-1]
+hm2 <- as.matrix(hm2)
+
+meta_dat <- hm[,c(1,4)]
+
+#get annotation
+levels(meta_dat$above_5)
+meta_dat <- unique(meta_dat)
+rownames(meta_dat) <- meta_dat$SampleID
+meta_dat2 <- meta_dat %>% select(above_5)
+meta_dat2 <- as.data.frame(meta_dat2)
+
+pheatmap(hm2, annotation_col = meta_dat, show_colnames = FALSE, cluster_rows = FALSE, cluster_cols = FALSE, gaps_col = 204)
+
+#this is all very difficult --> let's change this
+#calculate relative difference
+hm2 <- hm[,1:4]
+
+hm2 <- hm2 %>% pivot_wider(names_from = gene, values_from = expression_level)
+hm2 <- hm2 %>% select(! SampleID)
+
+hm2[,2:8] <- lapply(hm2[,2:8], log)
+hm2[,2:8] <- lapply(hm2[,2:8], scale)
+
+hm3 <- hm2 %>% pivot_longer(2:8, names_to = 'gene', values_to = 'scaled_expression_level')
+hm4 <- hm3 %>% group_by(above_5, gene) %>% summarise(median_expression = median(scaled_expression_level))
+hm4 <- hm4 %>% pivot_wider(values_from = median_expression, names_from = above_5)
+hm4 <- as.data.frame(hm4)
+rownames(hm4) <- hm4$gene
+hm4 <- hm4 %>% select(! gene)
+
+colnames(hm4)<- c('CRP <=5', 'CRP >5')
+hm5 <- as.matrix(hm4)
+pheatmap(hm5, cluster_rows = FALSE, cluster_cols = FALSE, legend=TRUE)
+
+
 #=============================================================================
 #compare for weight groups
 #CRP modelling without clustering
@@ -99,7 +172,7 @@ library(survminer)
 library(broom)
 
 
-inflammatory_genes_and_adipokines <- readRDS("C:/Users/Gebruiker/Downloads/inflammatory_genes_and_adipokines.rds")
+inflammatory_genes_and_adipokines <- readRDS("C:/filepaths.rds")
 lapply(inflammatory_genes_and_adipokines[,2:101], hist)
 
 #now log-transform the data
@@ -112,7 +185,7 @@ lapply(rna1[,2:101], hist)
 
 rna <- rna1 %>% pivot_longer(2:101, names_to = 'gene', values_to = 'expression_level')
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/filepath.rds")
 bmi_df <- v4_clean_clinical_data_first_visit_15Dec23
 bmi_df$weight <- ifelse(bmi_df$bs_bmi <18.5, 'underweight', NA)
 bmi_df$weight <- ifelse(bmi_df$bs_bmi >=18.5 & bmi_df$bs_bmi <25, 'normal weight', bmi_df$weight)
@@ -190,14 +263,8 @@ genes <- as.data.frame(genes)
 #now plot
 library(ggrepel)
 
-#also give colour for significance
-genes$significant <- NA
-genes$significant <- ifelse(genes$gene %in% c('TGFA', 'TIMP1', 'IL1RN', 'TGFBR2', 'CXCL16', 'IL1B', 'HIF1A'), 'Significant','Not significant')
-genes$significant <- as.factor(genes$significant)
-
 plot_scaled <- ggplot(genes, aes(x=FDR_adjusted_for_BMI, y=FDR_adjusted_for_CRP)) +
-  geom_point(aes(colour=significant)) +
-  scale_colour_manual(values=c("black", "darkorange"), name='Significance') +
+  geom_point() +
   theme_bw() +
   xlim(0, 4.75) +
   ylim(0,4.75) +
@@ -205,9 +272,10 @@ plot_scaled <- ggplot(genes, aes(x=FDR_adjusted_for_BMI, y=FDR_adjusted_for_CRP)
   xlab('-log10 P-values between BMI groups') +
   ylab('-log10 P-values between CRP groups') +
   geom_abline() +
-  #geom_hline(yintercept = 2, linetype='dotted', col='red') +
-  #geom_vline(xintercept = 2, linetype='dotted', col='red') +
+  geom_hline(yintercept = 2, linetype='dotted', col='red') +
+  geom_vline(xintercept = 2, linetype='dotted', col='red') +
+  annotate("text", x = 3.5, y = 2, label = "FDR significance threshold", vjust = -0.5, size=3) +
   theme(aspect.ratio = 1) +
   geom_text_repel(data=subset(genes, FDR_adjusted_for_CRP >2 | FDR_adjusted_for_BMI >2), aes(x=FDR_adjusted_for_BMI, y=FDR_adjusted_for_CRP, label=gene))
 
-  
+            

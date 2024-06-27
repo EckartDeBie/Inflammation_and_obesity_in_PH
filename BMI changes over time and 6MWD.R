@@ -9,10 +9,10 @@ getwd()
 library(tidyverse)
 
 #extract information from the latest datadump
-load("interal_drive_location.RData")
+load("filepath")
 
 #since CSCS is unreachable now
-data_clean_cohort_used_for_crp <- readRDS("C:/Users/dropbox_data_location/data_clean_cohort_used_for_crp.rds")
+data_clean_cohort_used_for_crp <- readRDS("filepath")
 data.clean.cohort <- data_clean_cohort_used_for_crp
 
 #clean and prepare the DF
@@ -27,7 +27,7 @@ df3 <- df2 %>% group_by(id) %>% arrange(visit) %>% mutate(percentual_change_BMI 
 #first remove unlikely changes
 df3 <- df3 %>% filter(percentual_change_BMI > -35 & percentual_change_BMI < 70)
 
-v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("C:/Users/location/v4_clean_clinical_data_first_visit_15Dec23.rds")
+v4_clean_clinical_data_first_visit_15Dec23 <- readRDS("filepath")
 labs <- v4_clean_clinical_data_first_visit_15Dec23 %>% select(id, age_diagnosis, diagnosis_verified)
 #only adults but keep all causes of PAH in there
 labs <- labs %>% filter(age_diagnosis >=18)
